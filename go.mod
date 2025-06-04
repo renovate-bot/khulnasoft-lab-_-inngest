@@ -66,7 +66,7 @@ require (
 	github.com/throttled/throttled/v2 v2.11.0
 	github.com/twmb/franz-go v1.18.1
 	github.com/valyala/fastjson v1.6.4
-	github.com/vektah/gqlparser/v2 v2.5.15
+	github.com/vektah/gqlparser/v2 v2.5.27
 	github.com/xhit/go-str2duration/v2 v2.1.0
 	go.opentelemetry.io/collector/pdata v1.6.0
 	go.opentelemetry.io/otel v1.28.0
@@ -104,7 +104,7 @@ require (
 	cloud.google.com/go/pubsub v1.41.0 // indirect
 	github.com/DataDog/zstd v1.4.5 // indirect
 	github.com/aead/chacha20 v0.0.0-20180709150244-8b13a72661da // indirect
-	github.com/agnivade/levenshtein v1.1.1 // indirect
+	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/alicebob/gopher-json v0.0.0-20230218143504-906a9b012302 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/aws/aws-sdk-go v1.55.5 // indirect
