@@ -23,8 +23,8 @@ require (
 	github.com/dmarkham/enumer v1.5.8
 	github.com/doug-martin/goqu/v9 v9.19.0
 	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
-	github.com/eko/gocache/lib/v4 v4.1.5
-	github.com/eko/gocache/store/freecache/v4 v4.2.1
+	github.com/eko/gocache/lib/v4 v4.1.6
+	github.com/eko/gocache/store/freecache/v4 v4.2.2
 	github.com/eko/gocache/store/rueidis/v4 v4.1.5
 	github.com/fatih/structs v1.1.0
 	github.com/go-chi/chi/v5 v5.0.10
