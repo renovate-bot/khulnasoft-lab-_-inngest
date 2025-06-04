@@ -34,7 +34,7 @@ require (
 	github.com/google/cel-go v0.21.0
 	github.com/google/uuid v1.6.0
 	github.com/gosimple/slug v1.12.0
-	github.com/gowebpki/jcs v1.0.0
+	github.com/gowebpki/jcs v1.0.1
 	github.com/graph-gophers/dataloader v5.0.0+incompatible
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/inngest/expr v0.0.0-20250521221349-ef1dab5028e5
