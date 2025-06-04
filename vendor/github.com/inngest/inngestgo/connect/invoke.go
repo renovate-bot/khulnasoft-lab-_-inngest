@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/coder/websocket"
 	"github.com/inngest/inngest/pkg/connect/wsproto"
 	"github.com/inngest/inngest/pkg/enums"
 	"github.com/inngest/inngest/pkg/publicerr"
@@ -18,8 +19,8 @@ const (
 	ResponseAcknowlegeDeadline = time.Second * 5
 )
 
-func (h *connectHandler) handleInvokeMessage(ctx context.Context, preparedConn *connection, msg *connectproto.ConnectMessage) error {
-	resp, err := h.connectInvoke(ctx, preparedConn, msg)
+func (h *connectHandler) handleInvokeMessage(ctx context.Context, ws *websocket.Conn, msg *connectproto.ConnectMessage) error {
+	resp, err := h.connectInvoke(ctx, ws, msg)
 	if err != nil {
 		h.logger.Error("failed to handle sdk request", "err", err)
 		// TODO Should we drop the connection? Continue receiving messages?
@@ -43,7 +44,7 @@ func (h *connectHandler) handleInvokeMessage(ctx context.Context, preparedConn *
 	// that the message was truly passed on to the executor _unless_ we receive the ack message.
 	h.messageBuffer.addPending(ctx, resp, ResponseAcknowlegeDeadline)
 
-	err = wsproto.Write(ctx, preparedConn.ws, responseMessage)
+	err = wsproto.Write(ctx, ws, responseMessage)
 	if err != nil {
 		h.logger.Error("failed to send sdk response", "err", err)
 
@@ -57,7 +58,7 @@ func (h *connectHandler) handleInvokeMessage(ctx context.Context, preparedConn *
 }
 
 // connectInvoke is the counterpart to invoke for connect
-func (h *connectHandler) connectInvoke(ctx context.Context, preparedConn *connection, msg *connectproto.ConnectMessage) (*connectproto.SDKResponse, error) {
+func (h *connectHandler) connectInvoke(ctx context.Context, ws *websocket.Conn, msg *connectproto.ConnectMessage) (*connectproto.SDKResponse, error) {
 	body := connectproto.GatewayExecutorRequestData{}
 	if err := proto.Unmarshal(msg.Payload, &body); err != nil {
 		// TODO Should we send this back to the gateway?
@@ -92,7 +93,6 @@ func (h *connectHandler) connectInvoke(ctx context.Context, preparedConn *connec
 		StepId:         body.StepId,
 		SystemTraceCtx: body.SystemTraceCtx,
 		UserTraceCtx:   body.UserTraceCtx,
-		RunId:          body.RunId,
 	})
 	if err != nil {
 		h.logger.Error("error marshaling request ack", "error", err)
@@ -104,7 +104,7 @@ func (h *connectHandler) connectInvoke(ctx context.Context, preparedConn *connec
 
 	// Ack message
 	// If we're shutting down (context is canceled) we will not ack, which is desired!
-	if err := wsproto.Write(ctx, preparedConn.ws, &connectproto.ConnectMessage{
+	if err := wsproto.Write(ctx, ws, &connectproto.ConnectMessage{
 		Kind:    connectproto.GatewayMessageType_WORKER_REQUEST_ACK,
 		Payload: ackPayload,
 	}); err != nil {
@@ -130,66 +130,6 @@ func (h *connectHandler) connectInvoke(ctx context.Context, preparedConn *connec
 	if body.StepId != nil && *body.StepId != "step" {
 		stepId = body.StepId
 	}
-
-	// Set initial lease ID
-	h.workerPool.inProgressLeasesLock.Lock()
-	h.workerPool.inProgressLeases[body.RequestId] = body.LeaseId
-	h.workerPool.inProgressLeasesLock.Unlock()
-
-	defer func() {
-		h.workerPool.inProgressLeasesLock.Lock()
-		delete(h.workerPool.inProgressLeases, body.RequestId)
-		h.workerPool.inProgressLeasesLock.Unlock()
-	}()
-
-	extendLeaseCtx, cancelExtendLeaseCtx := context.WithCancel(ctx)
-	defer cancelExtendLeaseCtx()
-	
-	go func() {
-		for {
-			select {
-			case <-extendLeaseCtx.Done():
-				return
-			case <-time.After(preparedConn.extendLeaseInterval):
-			}
-
-			h.workerPool.inProgressLeasesLock.Lock()
-			currentLeaseID, ok := h.workerPool.inProgressLeases[body.RequestId]
-			h.workerPool.inProgressLeasesLock.Unlock()
-
-			if !ok {
-				// If the lease is not found (e.g. due to being removed after a nack),
-				// stop extending it.
-				cancelExtendLeaseCtx()
-				return
-			}
-
-			// TODO Extend once more before finishing (to ensure write reaches executor in time)
-			extendPayload, err := proto.Marshal(&connectproto.WorkerRequestExtendLeaseData{
-				RequestId:      body.RequestId,
-				AccountId:      body.AccountId,
-				EnvId:          body.EnvId,
-				AppId:          body.AppId,
-				FunctionSlug:   body.FunctionSlug,
-				StepId:         body.StepId,
-				SystemTraceCtx: body.SystemTraceCtx,
-				UserTraceCtx:   body.UserTraceCtx,
-				RunId:          body.RunId,
-				LeaseId:        currentLeaseID,
-			})
-			if err != nil {
-				h.logger.Error("error marshaling extend payload", "error", err)
-				continue
-			}
-
-			if err := wsproto.Write(ctx, preparedConn.ws, &connectproto.ConnectMessage{
-				Kind:    connectproto.GatewayMessageType_WORKER_REQUEST_EXTEND_LEASE,
-				Payload: extendPayload,
-			}); err != nil {
-				h.logger.Error("error sending extend request", "error", err)
-			}
-		}
-	}()
 
 	// Invoke function, always complete regardless of
 	resp, ops, err := invoker.InvokeFunction(context.Background(), body.FunctionSlug, stepId, request)
@@ -242,7 +182,6 @@ func (h *connectHandler) connectInvoke(ctx context.Context, preparedConn *connec
 			RequestVersion: 0, // Go SDK currently only supports v0
 			SystemTraceCtx: body.SystemTraceCtx,
 			UserTraceCtx:   body.UserTraceCtx,
-			RunId:          body.RunId,
 		}, nil
 	}
 

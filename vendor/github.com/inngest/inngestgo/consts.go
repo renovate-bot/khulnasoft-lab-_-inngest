@@ -16,3 +16,7 @@ const (
 const (
 	executionVersionV2 = "2"
 )
+
+var (
+	SDKVersion = "0.11.4"
+)

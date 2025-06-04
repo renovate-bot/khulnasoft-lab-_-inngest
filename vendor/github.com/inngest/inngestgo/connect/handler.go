@@ -23,6 +23,10 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+const (
+	WorkerHeartbeatInterval = 10 * time.Second
+)
+
 type ConnectionState string
 
 const (
@@ -143,7 +147,7 @@ type connectHandler struct {
 	state           ConnectionState
 	workerCtx       context.Context
 	cancelWorkerCtx context.CancelFunc
-	gracefulCloseEg errgroup.Group
+	eg              errgroup.Group
 	auth            authContext
 	closed          atomic.Bool
 }
@@ -360,9 +364,8 @@ func (h *connectHandler) Connect(ctx context.Context) (WorkerConnection, error) 
 	})
 
 	// Handle run loop closure gracefully, this is also triggered on Close()
-	h.gracefulCloseEg = errgroup.Group{}
-	h.gracefulCloseEg.Go(func() error {
-		// Wait for run loop to complete (maximum attempts reached, context canceled)
+	h.eg = errgroup.Group{}
+	h.eg.Go(func() error {
 		runLoopErr := runLoop.Wait()
 		if runLoopErr != nil {
 			h.logger.Error("could not connect", "err", runLoopErr)
@@ -372,7 +375,6 @@ func (h *connectHandler) Connect(ctx context.Context) (WorkerConnection, error) 
 
 		// Wait until current connection is fully terminated
 		select {
-		case <-ctx.Done():
 		case <-time.After(5 * time.Second):
 			h.logger.Warn("shutting down without final signal")
 		case <-h.notifyConnectDoneChan:
@@ -425,7 +427,7 @@ func (h *connectHandler) Close() error {
 	h.cancelWorkerCtx()
 
 	// Wait until connection loop finishes
-	err := h.gracefulCloseEg.Wait()
+	err := h.eg.Wait()
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
@@ -447,7 +449,7 @@ func (h *connectHandler) processExecutorRequest(msg workerPoolMsg) {
 	// Always make sure the invoke finishes properly
 	processCtx := context.Background()
 
-	err := h.handleInvokeMessage(processCtx, msg.preparedConn, msg.msg)
+	err := h.handleInvokeMessage(processCtx, msg.ws, msg.msg)
 
 	// When we encounter an error, we cannot retry the connection from inside the goroutine.
 	// If we're dealing with connection loss, the next read loop will fail with the same error
