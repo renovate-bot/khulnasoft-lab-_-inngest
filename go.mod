@@ -9,7 +9,7 @@ replace github.com/tencentcloud/tencentcloud-sdk-go v3.0.82+incompatible => gith
 require (
 	connectrpc.com/connect v1.16.1
 	cuelang.org/go v0.4.2
-	github.com/99designs/gqlgen v0.17.27
+	github.com/99designs/gqlgen v0.17.74
 	github.com/MauriceGit/skiplist v0.0.0-20211105230623-77f5c8d3e145
 	github.com/VividCortex/ewma v1.2.0
 	github.com/alicebob/miniredis/v2 v2.34.0
