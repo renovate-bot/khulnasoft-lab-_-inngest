@@ -412,14 +412,13 @@ github.com/cockroachdb/redact/internal/rfmt/fmtsort
 # github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06
 ## explicit; go 1.19
 github.com/cockroachdb/tokenbucket
-# github.com/coder/websocket v1.8.12
+# github.com/coder/websocket v1.8.13
 ## explicit; go 1.19
 github.com/coder/websocket
 github.com/coder/websocket/internal/bpool
 github.com/coder/websocket/internal/errd
 github.com/coder/websocket/internal/util
 github.com/coder/websocket/internal/wsjs
-github.com/coder/websocket/internal/xsync
 # github.com/coocood/freecache v1.2.3
 ## explicit; go 1.13
 github.com/coocood/freecache
